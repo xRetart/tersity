@@ -36,6 +36,11 @@ TARGET = $(TARGET_DIRECTORY)/vector.a
 
 # implementation, changes can break (maybe don't touch)
 
+# assert environment variables
+ifeq ($(PREFIX),)
+	PREFIX := /usr/local
+endif
+
 # linking all object (system and stdlib) together
 $(TARGET): $(OBJECTS) $(SYSTEM_OBJECTS)
 	mkdir -p $(TARGET_DIRECTORY) && \
@@ -55,6 +60,14 @@ $(SYSTEM_OBJECTS): $(SYSTEM_SOURCES)
 	do \
 		nasm -felf64 source -o $@; \
 	done
+
+install:
+	if [ -f target/vector.a ]; \
+	then \
+		install target/vector.a $(DESTDIR)$(PREFIX)/lib/; \
+	else \
+		echo "[make install] error: make before installing"; \
+	fi
 
 clean:
 	rm -rf $(TARGET_DIRECTORY)

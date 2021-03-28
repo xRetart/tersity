@@ -21,12 +21,25 @@ LLVM_LIBRARY = /usr/bin/llvm-lib-11
 
 HEADERS = $(shell find source/ -name "*.hpp")
 
+# implementation
+ifeq ($(PREFIX),)
+	PREFIX := /usr/local
+endif
+
 $(TARGET): $(OBJECT_FILE) $(LLVM_LIBRARY)
 	$(CXX) $(OBJECT_FILE) -o $@ $(LINKER_FLAGS)
 
 $(OBJECT_FILE): $(SOURCE_FILE) $(HEADERS)
 	mkdir -p $(TARGET_DIRECTORY) && \
 	$(CXX) $(SOURCE_FILE) -o $@ -c $(COMPILER_FLAGS)
+
+install:
+	if [ -f target/vector ]; \
+	then \
+		install target/vector $(DESTDIR)$(PREFIX)/bin/; \
+	else \
+		echo "[make install] error: make before installing"; \
+	fi
 
 clean:
 	rm -rf $(TARGET_DIRECTORY)
