@@ -1,0 +1,7 @@
+function print_character(x : Byte);
+
+function main() -> Byte
+{
+  print_character(98 as Byte);
+  return 43 as Byte;
+}

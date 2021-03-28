@@ -1,0 +1,85 @@
+Programming Language - Clean
+
+Table of contents
+1. Statements and expressions
+2. Dynamic memory
+3. Variable declaration
+
+
+1. Statements and expressions
+Statement
+A Clean source code file is a hierarchy of code block starting with root.
+These code blocks can be imagined as an array of statements mostly separated by semicolons.
+
+Example:
+    std::print("hello");
+    std::print_char(' ');
+    std::print("world");
+
+... is an array of three print statements.
+
+A statement must not return a value or it is invalid.
+
+Expression
+An Expression has to return some kind of value.
+It must only be used to generate a value/object/etc. and cannot have any side effects.
+
+2. Dynamic memory
+Dynamic allocation request memory from the operating system at run-time.
+This storage is not placed on the stack and therefore only limited on size by the hardware.
+An allocation is invoked with the "allocate" keyword.
+
+allocate
+"allocate" takes one parameter being the type which to allocate an instance of.
+Multiple object allocation is possible by giving allocate an array type.
+A reference to an object of type "std::Allocated<parameter0>" is returned trough the expression.
+The "std::Allocated" template is part of the standard library which is implemented in open-source
+repository on github.com.
+"std::Allocated" calls deallocate on deconstruction preventing memory leaks.
+This standard requires the "allocate" keyword
+to be implemented using the "allocate_raw" function.
+
+deallocate
+"deallocate" -as the name implies- deallocates allocated memory.
+It takes a pointer to a heap object on which it calls the destructor before deallocating it.
+This standard requires the "deallocate" keyword
+to be implemented using the "deallocate_raw" function.
+
+
+allocate_raw
+"allocate_raw" takes a "Size" as parameter.
+This "Size" instance describes the number of bytes to allocate.
+No constructor shall be called from "allocate_raw".
+
+deallocate_raw
+"deallocate_raw" is the deallocation equivalent to "allocate_raw" taking
+the same parameters.
+
+3. Variable declaration
+Variables can only be used after they were declared which is when stack memory is set
+aside for the object.
+A variable declaration consist of 4 main parts.
+
+1. variable type
+The variable type is a modifier for the data type later described.
+It can one of the following in any combination.
+* - pointer
+& - reference
+constant
+compilation
+
+2. variable name
+The variable name is the identifier used to access its memory later during execution or compilation.
+It can contain all letters of the english alphabet, underscores and numbers.
+Underscores and numbers are only permitted after the first character.
+
+3. data type
+The data type describes the format in which the underlying memory is interpreted.
+It can be any of the built in types and user defined types.
+The variable name and data type are separated with a colon.
+If no data type is provided the compiler generates the fitting type for the variable.
+
+4. initializer braces
+The initializer braces hold the values with which to construct the object.
+In the case that the braces are missing the object is left undefined and in an invalid state.
+Later in execution or compilation the variable can be initialized using the braces.
