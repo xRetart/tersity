@@ -44,7 +44,8 @@ endif
 # linking all object (system and stdlib) together
 $(TARGET): $(OBJECTS) $(SYSTEM_OBJECTS)
 	mkdir -p $(TARGET_DIRECTORY) && \
-	ar rcs $(TARGET) $^
+	ar rcs $@ $^ && \
+	strip -s $@
 
 # compilation of stdlib source (vector format) to objects
 $(OBJECTS): $(SOURCES)

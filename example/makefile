@@ -32,7 +32,8 @@ STDLIB = vector.a
 # link object(s) together
 $(TARGET): $(OBJECTS)
 	mkdir -p $(BUILD_DIRECTORY)
-	clang-11 $^ -o $@
+	clang-11 $^ -o $@ && \
+	strip -s $@
 
 # compiler general llvm source(s) to specific object(s)
 $(OBJECTS): $(LLVMS)
