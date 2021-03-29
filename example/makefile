@@ -23,8 +23,12 @@ TARGET_DIRECTORY = $(BUILD_DIRECTORY)
 TARGET = $(TARGET_DIRECTORY)/executable
 
 # suite configuration
+ifeq ($(PREFIX),)
+	PREFIX := /usr/local
+endif
+
 COMPILER = vector
-STDLIB = vector.a
+STDLIB = $(PREFIX)/lib/vector.a
 
 
 # implementation changes could break
@@ -32,8 +36,7 @@ STDLIB = vector.a
 # link object(s) together
 $(TARGET): $(OBJECTS)
 	mkdir -p $(BUILD_DIRECTORY)
-	clang-11 $^ -o $@ && \
-	strip -s $@
+	clang-11 $^ $(STDLIB) -o $@ -nostdlib
 
 # compiler general llvm source(s) to specific object(s)
 $(OBJECTS): $(LLVMS)
