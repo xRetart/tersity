@@ -23,14 +23,14 @@ TARGET_DIRECTORY = $(BUILD_DIRECTORY)
 TARGET = $(TARGET_DIRECTORY)/executable
 
 # suite configuration
-COMPILER = ./suite/compiler
-STDLIB = ./suite/stdlib.a
+COMPILER = vector
+STDLIB = vector.a
 
 
 # implementation changes could break
 
 # link object(s) together
-$(TARGET): $(OBJECTS) $(STDLIB)
+$(TARGET): $(OBJECTS)
 	mkdir -p $(BUILD_DIRECTORY)
 	clang-11 $^ -o $@
 
@@ -40,7 +40,7 @@ $(OBJECTS): $(LLVMS)
 	clang-11 $^ -c -o $@
 
 # translate vector source(s) to llvm representation
-$(LLVMS): $(SOURCES) $(COMPILER)
+$(LLVMS): $(SOURCES)
 	mkdir -p $(LLVMS_DIRECTORY)
 	$(COMPILER) $(SOURCES) $@
 
