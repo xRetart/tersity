@@ -10,6 +10,16 @@
 
 namespace vector::lexing
 {
+    // utility for identification
+    [[nodiscard]] constexpr auto clamp_character
+    (const unsigned char value, const unsigned char low, const unsigned char high) noexcept -> bool
+    {
+        return value >= low && value <= high;
+    }
+
+
+    // character identification
+
     // check "word" against keyword database
     // returns true on match
     [[nodiscard]] constexpr auto is_keyword(const language::Source word) noexcept -> bool
@@ -24,8 +34,38 @@ namespace vector::lexing
             word == "else" ||
             word == "import";
     }
+    [[nodiscard]] constexpr auto is_whitespace(const char character) noexcept -> bool
+    {
+        return
+            character == ' ' ||
+            character == '\n' ||
+            character == '\t';
+    }
+    [[nodiscard]] constexpr auto is_comment(const std::pair<char, char>& next_two) noexcept -> bool
+    {
+        return next_two.first == '/' && next_two.second == '/';
+    }
+    [[nodiscard]] constexpr auto is_multiline_comment
+    (const std::pair<char, char>& next_two) noexcept -> bool
+    {
+        return next_two.first == '/' && next_two.second == '*';
+    }
+    // TODO: add support for "as" and other to come word operators
+    [[nodiscard]] constexpr auto is_word(const char character) noexcept -> bool
+    {
+        // not implemented using "std::isalpha" because it is not constexpr
+        const auto ascii = static_cast<unsigned char>(character);
+        return clamp_character(ascii, 'A', 'Z') || clamp_character(ascii, 'a', 'z') || character == '_';
+    }
+    [[nodiscard]] constexpr auto is_number(const char character) noexcept -> bool
+    {
+        return clamp_character(static_cast<unsigned char>(character), '0', '9');
+    }
 
 
+    // actual lexing
+    
+    // string literal: "abc"
     [[nodiscard]] auto lex_string_literal(language::SourceIterator iterator) noexcept -> language::Token
     {
         auto output = language::Token {language::Token::Type::string_literal, std::string {}};
@@ -39,6 +79,7 @@ namespace vector::lexing
         ++iterator;
         return output;
     }
+    // character literal: 'x'
     [[nodiscard]] auto lex_char_literal(language::SourceIterator iterator) noexcept -> language::Token
     {
         const auto output = language::Token {language::Token::Type::character_literal, *iterator};
@@ -47,6 +88,7 @@ namespace vector::lexing
         return output;
     }
 
+    // any word in source code: function
     [[nodiscard]] auto lex_word(language::SourceIterator iterator) noexcept -> language::Token 
     {
        auto word = std::string {};
@@ -56,10 +98,18 @@ namespace vector::lexing
             word.push_back(*iterator);
             ++iterator;
         }
-        while (std::isalpha(*iterator) != 0 || *iterator == '_' || std::isdigit(*iterator));
+        while (is_word(*iterator) || is_number(*iterator));
 
-        return {is_keyword(word) ? language::Token::Type::keyword : language::Token::Type::identifier, word}; 
+        return
+            {
+                (
+                    is_keyword(word) ?
+                    language::Token::Type::keyword : language::Token::Type::identifier
+                ),
+                word
+            }; 
     }
+    // numeric literals like: 123
     [[nodiscard]] auto lex_number(language::SourceIterator iterator) noexcept -> language::Token 
     {
         auto has_decimal = bool {};
@@ -88,7 +138,8 @@ namespace vector::lexing
             return {language::Token::Type::fraction_literal, std::strtod(number_begin, nullptr)};
         }
     }
-    [[nodiscard]] auto lex_symbol(language::SourceIterator iterator) noexcept -> language::Token
+    // any sign or ascii that does not math other descriptions: +
+    [[nodiscard]] auto lex_sign(language::SourceIterator iterator) noexcept -> language::Token
     {
         auto disambiguate =
             [&iterator]
@@ -186,38 +237,34 @@ namespace vector::lexing
             const auto character = *iterator;
 
             // whitespace is strictly for readabilty
-            if (character == ' ' || character == '\n')
+            if (is_whitespace(character))
             {
                 ++iterator;
             }
             // comment
-            else if (character == '/' && iterator[1] == '/')
+            else if (is_comment({iterator[0], iterator[1]}))
             {
                 skip_comment(iterator += 2);
             }
             // multiline line comment
-            else if (character == '/' && iterator[1] == '*')
+            else if (is_multiline_comment({iterator[0], iterator[1]}))
             {
                 skip_multiline_comment(iterator += 2);
             }
-            // keyword or identifier
-            else if
-            (
-                (std::isalpha(character) != 0 || character == '_') &&
-                (character != 'a' || iterator[1] != 's' || std::isalpha(iterator[1]))
-            )
+            // keyword or identifier aka. word
+            else if (is_word(character))
             {
                 output.push_back(lex_word(iterator));
             }
             // numeric literals
-            else if (std::isdigit(character) != 0)
+            else if (is_number(character))
             {
                 output.push_back(lex_number(iterator));
             }
             // operators and seperators
             else
             {
-                output.push_back(lex_symbol(iterator));
+                output.push_back(lex_sign(iterator));
             }
         }
 
