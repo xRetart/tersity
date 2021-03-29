@@ -3,6 +3,6 @@ function exit(x : Integer);
 
 function _start()
 {
-    let error_code = main();
-    exit(error_code as Integer);
+	let error_code = main();
+	exit(error_code as Integer);
 }

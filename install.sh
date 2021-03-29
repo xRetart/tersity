@@ -3,7 +3,7 @@
 
 function build_install
 {
-    (cd $1 && make && make install)
+	(cd $1 && make && make install)
 }
 
 # build and install compiler

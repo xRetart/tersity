@@ -16,9 +16,9 @@ HEADERS = $(shell find source/ -name "*.hpp")
 
 # debug and release (default) configurations
 ifeq ($(DEBUG), 1)
-	COMPILER_FLAGS= $(BASE_COMPILATION_FLAGS) -Wall -Wextra -Wpedantic -Wimplicit-fallthrough -g -Og -v
+	COMPILER_FLAGS = $(BASE_COMPILATION_FLAGS) -Wall -Wextra -Wpedantic -Wimplicit-fallthrough -g -Og -v
 else
-	COMPILER_FLAGS=$(BASE_COMPILATION_FLAGS) -w -O3
+	COMPILER_FLAGS = $(BASE_COMPILATION_FLAGS) -w -O3
 endif
 
 
