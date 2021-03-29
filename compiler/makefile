@@ -1,8 +1,8 @@
-BASE_COMPILATION_FLAGS= \
+BASE_COMPILATION_FLAGS = \
 	-std=c++2a -I/usr/include/llvm-11 -I/usr/include/llvm-c-11 \
 	`llvm-config-11 --system-libs --libs core` -fno-rtti -fno-exceptions
 
-LINKER_FLAGS=$(COMPILER_FLAGS)
+LINKER_FLAGS = $(COMPILER_FLAGS)
 CXX = clang++-11
 
 # filename configuration
