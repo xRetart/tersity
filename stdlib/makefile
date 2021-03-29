@@ -61,7 +61,8 @@ $(SYSTEM_OBJECTS): $(SYSTEM_SOURCES)
 	mkdir -p $(SYSTEM_OBJECT_DIRECTORY) && \
 	for source in $(SYSTEM_SOURCES); \
 	do \
-		nasm -felf64 source -o $@; \
+		source_basename=$$(basename -- $$source) && \
+		nasm -felf64 $$source -o $(SYSTEM_OBJECT_DIRECTORY)/$${source_basename%%.*}.o -wall; \
 	done
 
 install:

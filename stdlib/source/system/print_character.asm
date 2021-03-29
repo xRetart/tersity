@@ -11,3 +11,5 @@ print_character:
     mov rdx, 1  ; print just one character
 
     syscall
+
+    ret
