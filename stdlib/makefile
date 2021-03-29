@@ -49,7 +49,7 @@ $(TARGET): $(OBJECTS) $(SYSTEM_OBJECTS)
 # compilation of stdlib source (vector format) to objects
 $(OBJECTS): $(SOURCES)
 	mkdir -p $(TARGET_DIRECTORY)/$(LLVM_DIRECTORY) && \
-	./vector $(SOURCES) $(LLVM_FILES) && \
+	vector $(SOURCES) $(LLVM_FILES) && \
 	mkdir -p $(TARGET_DIRECTORY)/$(OBJECT_DIRECTORY) && \
 	clang-11 $(LLVM_FILES) -c -o $@
 
