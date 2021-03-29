@@ -65,7 +65,7 @@ $(SYSTEM_OBJECTS): $(SYSTEM_SOURCES)
 	done
 
 install:
-	install $(TARGET) $(DESTDIR)$(PREFIX)/lib/;
+	install $(TARGET) $(DESTDIR)$(PREFIX)/lib/
 
 clean:
 	rm -rf $(TARGET_DIRECTORY)

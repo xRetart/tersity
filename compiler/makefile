@@ -36,12 +36,7 @@ $(OBJECT_FILE): $(SOURCE_FILE) $(HEADERS)
 	$(CXX) $(SOURCE_FILE) -o $@ -c $(COMPILER_FLAGS)
 
 install:
-	if [ -f target/vector ]; \
-	then \
-		install target/vector $(DESTDIR)$(PREFIX)/bin/; \
-	else \
-		echo "[make install] error: make before installing"; \
-	fi
+	install target/vector $(DESTDIR)$(PREFIX)/bin/
 
 clean:
 	rm -rf $(TARGET_DIRECTORY)
