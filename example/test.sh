@@ -10,4 +10,4 @@ make
 ./target/executable
 
 # print returned error code
-echo returned $?
+echo -e "\nreturned $?"
