@@ -28,8 +28,8 @@ ifeq ($(PREFIX),)
 endif
 
 $(TARGET): $(OBJECT_FILE) $(LLVM_LIBRARY)
-	$(CXX) $(OBJECT_FILE) -o $@ $(LINKER_FLAGS) && \
-	strip -s $@
+	$(CXX) $(OBJECT_FILE) -o $@ $(LINKER_FLAGS)
+	# strip -s $@
 
 $(OBJECT_FILE): $(SOURCE_FILE) $(HEADERS)
 	mkdir -p $(TARGET_DIRECTORY) && \

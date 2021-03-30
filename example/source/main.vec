@@ -1,12 +1,12 @@
-function print_character(x : Natural);
+function print_character(x : Character);
 
 
 function main() -> Byte
 {
-	print_character(97n);
-	print_character(98n);
-	print_character(99n);
-	print_character(10n);
-	
-	return 42b;
+	print_character('x');
+	print_character('y');
+	print_character('z');
+	print_character(10c);
+
+	return 0b;
 }

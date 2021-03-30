@@ -47,6 +47,7 @@ namespace vector::generation
 	{
 		return
 			identifier == "Byte" ||
+			identifier == "Character" ||
 			identifier == "Integer8" ||
 			identifier == "Integer16" ||
 			identifier == "Integer32" ||
@@ -69,6 +70,10 @@ namespace vector::generation
 			return {llvm::Type::getDoubleTy(context), false};
 		}
 		else if (identifier == "Byte")
+		{
+			return {llvm::Type::getInt8Ty(context), false};
+		}
+		else if (identifier == "Character")
 		{
 			return {llvm::Type::getInt8Ty(context), false};
 		}
@@ -99,6 +104,10 @@ namespace vector::generation
 		{
 			return 64;
 		}
+		else if (identifier == "c")
+		{
+			return 8;
+		}
 		else if (identifier == "b")
 		{
 			return 8;
@@ -115,7 +124,8 @@ namespace vector::generation
 	{
 		const auto literal = std::get<language::WholeLiteralExpression>(value.data);
 		return
-			llvm::ConstantInt::get(context, llvm::APInt {literal_type_size(literal.type), literal.value});
+			llvm::ConstantInt::get
+				(context, llvm::APInt {literal_type_size(literal.type), literal.value});
 	}
 	[[nodiscard]] auto generate_fraction_literal_expression
 		(Llvm::Context& context,const language::SyntaxTree& value) noexcept -> llvm::ConstantFP*
@@ -126,6 +136,12 @@ namespace vector::generation
 				context,
 				llvm::APFloat {std::get<language::FractionLiteralExpression>(value.data).value}
 			);
+	}
+	[[nodiscard]] auto generate_character_literal_expression
+		(Llvm::Context& context,const language::SyntaxTree& value) noexcept -> llvm::ConstantInt*
+	{
+		const auto literal = std::get<language::CharacterLiteralExpression>(value.data);
+		return llvm::ConstantInt::get(context, llvm::APInt {8, static_cast<uint64_t>(literal.value)});
 	}
 
 	[[nodiscard]] auto generate_variable_expression
@@ -425,6 +441,8 @@ namespace vector::generation
 			return generate_whole_literal_expression(state.context, expression);
 		case language::SyntaxTree::Type::fraction_literal_expression:
 			return generate_fraction_literal_expression(state.context, expression);
+		case language::SyntaxTree::Type::character_literal_expression:
+			return generate_character_literal_expression(state.context, expression);
 		case language::SyntaxTree::Type::variable_expression:
 			return generate_variable_expression(state.symbols, expression);
 		case language::SyntaxTree::Type::call_expression:
