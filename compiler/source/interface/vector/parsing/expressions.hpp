@@ -72,31 +72,89 @@ namespace vector::parsing
 
 
 
+	// TODO: make implicit literal "Natural"
 	[[nodiscard]] auto parse_whole_literal_expression(language::TokenIterator iterator) noexcept
 		-> language::SyntaxTree
 	{
+		const auto value = std::get<unsigned long long>(iterator++->value);
+		auto type = std::string_view {};
+
+		if (iterator->type == language::Token::Type::identifier)
+		{
+			type = std::get<std::string>(iterator++->value);
+		}
+		else
+		{
+			type = "Integer";
+		}
+
 		return
 			{
 				language::SyntaxTree::Type::whole_literal_expression,
-				std::get<unsigned long long>(iterator++->value)
+				language::WholeLiteralExpression {type, value}
 			};
 	}
 	[[nodiscard]] auto parse_fraction_literal_expression(language::TokenIterator iterator) noexcept
 		-> language::SyntaxTree
 	{
+		const auto value = std::get<double>(iterator++->value);
+		auto type = std::string_view {};
+
+		if (iterator->type == language::Token::Type::identifier)
+		{
+			type = std::get<std::string>(iterator++->value);
+		}
+		else
+		{
+			type = "Real";
+		}
+
 		return
 			{
 				language::SyntaxTree::Type::fraction_literal_expression,
-				std::get<double>(iterator++->value)
+				language::FractionLiteralExpression {type, value}
+			};
+	}
+	[[nodiscard]] auto parse_character_literal_expression(language::TokenIterator iterator) noexcept
+		-> language::SyntaxTree
+	{
+		const auto value = std::get<char>(iterator++->value);
+		auto type = std::string_view {};
+
+		if (iterator->type == language::Token::Type::identifier)
+		{
+			type = std::get<std::string>(iterator++->value);
+		}
+		else
+		{
+			type = "Character";
+		}
+
+		return
+			{
+				language::SyntaxTree::Type::character_literal_expression,
+				language::CharacterLiteralExpression {type, value}
 			};
 	}
 	[[nodiscard]] auto parse_string_literal_expression(language::TokenIterator iterator) noexcept
 		-> language::SyntaxTree
 	{
+		const auto value = std::get<unsigned long long>(iterator++->value);
+		auto type = std::string_view {};
+
+		if (iterator->type == language::Token::Type::identifier)
+		{
+			type = std::get<std::string>(iterator++->value);
+		}
+		else
+		{
+			type = "[]Character";
+		}
+
 		return
 			{
-				language::SyntaxTree::Type::string_literal_expression,
-				std::get<std::string>(iterator++->value)
+				language::SyntaxTree::Type::whole_literal_expression,
+				language::WholeLiteralExpression {type, value}
 			};
 	}
 	[[nodiscard]] auto parse_variable_expression(language::TokenIterator iterator) noexcept
@@ -106,16 +164,6 @@ namespace vector::parsing
 			{
 				language::SyntaxTree::Type::variable_expression,
 				std::get<std::string>(iterator++->value)
-			};
-	}
-	[[nodiscard]] auto parse_character_literal_expression(language::TokenIterator iterator) noexcept
-		-> error::Result<language::SyntaxTree>
-	{
-		return
-			language::SyntaxTree
-			{
-				language::SyntaxTree::Type::character_literal_expression,
-				std::get<char>(iterator++->value)
 			};
 	}
 	[[nodiscard]] auto parse_call_expression(language::TokenIterator iterator) noexcept
@@ -221,6 +269,7 @@ namespace vector::parsing
 		}
 	}
 
+	// TODO: rethink implementation
 	[[nodiscard]] auto parse_binary_expression
 	(
 		language::TokenIterator iterator,
@@ -323,8 +372,7 @@ namespace vector::parsing
 		VECTOR_ASSERT_RESULT(expression_result);
 		auto& expression = expression_result.value();
 
-		const auto binary_parsing_result = parse_binary_expression(iterator, expression);
-		VECTOR_ASSERT_RESULT(binary_parsing_result);
+		VECTOR_ASSERT_RESULT(parse_binary_expression(iterator, expression));
 
 		return expression;
 	}

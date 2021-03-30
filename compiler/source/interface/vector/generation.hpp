@@ -53,89 +53,98 @@ namespace vector::generation
 			identifier == "Integer64" ||
 			identifier == "Integer";
 	}
-	[[nodiscard]] auto identifier_to_type(const Identifier identifier, Llvm::Context& context)
-		noexcept
-		-> Llvm::Type
+	[[nodiscard]] auto identifier_to_type(const Identifier identifier, Llvm::Context& context) noexcept
+		-> language::DataType
 	{
+		if (identifier == "Natural")
+		{
+			return {llvm::Type::getInt64Ty(context), false};
+		}
 		if (identifier == "Integer")
 		{
-			return llvm::Type::getInt64Ty(context);
+			return {llvm::Type::getInt64Ty(context), true};
 		}
 		else if (identifier == "Real")
 		{
-			return llvm::Type::getDoubleTy(context);
+			return {llvm::Type::getDoubleTy(context), false};
 		}
 		else if (identifier == "Byte")
 		{
-			return llvm::Type::getInt8Ty(context);
+			return {llvm::Type::getInt8Ty(context), false};
+		}
+		else if (identifier == "SByte")
+		{
+			return {llvm::Type::getInt8Ty(context), true};
 		}
 		else if (identifier.empty())
 		{
-			return llvm::Type::getVoidTy(context);
+			return {llvm::Type::getVoidTy(context), false};
 		}
 		else
 		{
-			return nullptr;
+			return {nullptr, false};
+		}
+	}
+	[[nodiscard]] constexpr auto literal_type_size(const Identifier identifier) noexcept -> unsigned int
+	{
+		if (identifier == "n")
+		{
+			return 64;
+		}
+		else if (identifier == "i")
+		{
+			return 64;
+		}
+		else if (identifier == "r")
+		{
+			return 64;
+		}
+		else if (identifier == "b")
+		{
+			return 8;
 		}
 	}
 	
 	// [expression]==================================================================================
 	[[nodiscard]] auto generate_expression
-	(
-		Llvm& state,
-		const language::SyntaxTree& expression
-	)
-		noexcept
-		-> Llvm::Value;
+		(Llvm& state, const language::SyntaxTree& expression) noexcept -> Llvm::Value;
 
 
-	[[nodiscard]] auto generate_fraction_literal_expression
-	(
-		Llvm::Context& context,
-		const language::SyntaxTree& value
-	)
-		noexcept ->
-		llvm::ConstantFP*
-	{
-		return llvm::ConstantFP::get(context, llvm::APFloat {std::get<double>(value.data)});
-	}
 	[[nodiscard]] auto generate_whole_literal_expression
-	(
-		Llvm::Context& context,
-		const language::SyntaxTree& value
-	)
-		noexcept
-		-> llvm::ConstantInt*
+		(Llvm::Context& context, const language::SyntaxTree& value) noexcept -> llvm::ConstantInt*
+	{
+		const auto literal = std::get<language::WholeLiteralExpression>(value.data);
+		return
+			llvm::ConstantInt::get(context, llvm::APInt {literal_type_size(literal.type), literal.value});
+	}
+	[[nodiscard]] auto generate_fraction_literal_expression
+		(Llvm::Context& context,const language::SyntaxTree& value) noexcept -> llvm::ConstantFP*
 	{
 		return
-			llvm::ConstantInt::get(context, llvm::APInt {64, std::get<unsigned long long>(value.data)});
+			llvm::ConstantFP::get
+			(
+				context,
+				llvm::APFloat {std::get<language::FractionLiteralExpression>(value.data).value}
+			);
 	}
+
 	[[nodiscard]] auto generate_variable_expression
-	(
-		Llvm::Symbols& symbols,
-		const language::SyntaxTree& variable
-	)
-		noexcept
-		-> Llvm::Value
+		(Llvm::Symbols& symbols, const language::SyntaxTree& variable) noexcept -> Llvm::Value
 	{
 		return symbols[std::get<std::string_view>(variable.data)];
 	}
 
 
 	[[nodiscard]] auto generate_cast
-	(
-		Llvm& state,
-		const language::BinaryExpression& expression
-	)
-		noexcept
-		-> Llvm::Value
+		(Llvm& state, const language::BinaryExpression& expression) noexcept -> Llvm::Value
 	{
 		const auto left = generate_expression(state, *expression.left.pointer);
 		const auto& right = std::get<std::string_view>(expression.right.pointer->data);
 
 		if (is_integer_type(right))
 		{
-			return state.builder.CreateIntCast(left, identifier_to_type(right, state.context), false);
+			const auto type = identifier_to_type(right, state.context);
+			return state.builder.CreateIntCast(left, type.llvm, type.is_signed);
 		}
 		else
 		{
@@ -143,13 +152,7 @@ namespace vector::generation
 		}
 	}
 	[[nodiscard]] auto generate_addition
-	(
-		Llvm::Builder& builder,
-		Llvm::Value left_summand,
-		Llvm::Value right_summand
-	)
-		noexcept
-		-> Llvm::Value
+		(Llvm::Builder& builder, Llvm::Value left_summand, Llvm::Value right_summand) noexcept -> Llvm::Value
 	{
 		const auto left_type {left_summand->getType()};
 		if (left_type == builder.getInt64Ty())
@@ -167,15 +170,9 @@ namespace vector::generation
 		} 
 	}
 	[[nodiscard]] auto generate_subraction
-	(
-		Llvm::Builder& builder,
-		Llvm::Value minuend,
-		Llvm::Value subtrahend
-	)
-		noexcept
-		-> Llvm::Value
+		(Llvm::Builder& builder, Llvm::Value minuend, Llvm::Value subtrahend) noexcept -> Llvm::Value
 	{
-		const auto minuend_type {minuend->getType()};
+		const auto minuend_type = minuend->getType();
 		if (minuend_type == builder.getInt64Ty())
 		{
 			return builder.CreateSub(minuend, subtrahend);
@@ -191,15 +188,9 @@ namespace vector::generation
 		} 
 	}
 	[[nodiscard]] auto generate_multiplication
-	(
-		Llvm::Builder& builder,
-		Llvm::Value multiplicand,
-		Llvm::Value multiplicator
-	)
-		noexcept
-		-> Llvm::Value
+		(Llvm::Builder& builder, Llvm::Value multiplicand, Llvm::Value multiplicator) noexcept -> Llvm::Value
 	{
-		const auto left_type {multiplicand->getType()};
+		const auto left_type = multiplicand->getType();
 		if (left_type == builder.getInt64Ty())
 		{
 			return builder.CreateMul(multiplicand, multiplicator);
@@ -215,13 +206,7 @@ namespace vector::generation
 		} 
 	}
 	[[nodiscard]] auto generate_equal
-	(
-		Llvm::Builder& builder,
-		Llvm::Value compared,
-		Llvm::Value comparer
-	)
-		noexcept
-		-> Llvm::Value
+		(Llvm::Builder& builder, Llvm::Value compared, Llvm::Value comparer) noexcept -> Llvm::Value
 	{
 		const auto dividend_type = compared->getType();
 
@@ -240,13 +225,7 @@ namespace vector::generation
 		} 
 	}
 	[[nodiscard]] auto generate_not_equal
-	(
-		Llvm::Builder& builder,
-		Llvm::Value compared,
-		Llvm::Value comparer
-	)
-		noexcept
-		-> Llvm::Value
+		(Llvm::Builder& builder, Llvm::Value compared, Llvm::Value comparer) noexcept -> Llvm::Value
 	{
 		const auto dividend_type = compared->getType();
 
@@ -265,13 +244,7 @@ namespace vector::generation
 		} 
 	}
 	[[nodiscard]] auto generate_greater_than
-	(
-		Llvm::Builder& builder,
-		Llvm::Value compared,
-		Llvm::Value comparer
-	)
-		noexcept
-		-> Llvm::Value
+		(Llvm::Builder& builder, Llvm::Value compared, Llvm::Value comparer) noexcept -> Llvm::Value
 	{
 		const auto dividend_type = compared->getType();
 
@@ -290,13 +263,7 @@ namespace vector::generation
 		} 
 	}
 	[[nodiscard]] auto generate_greater_equal
-	(
-		Llvm::Builder& builder,
-		Llvm::Value compared,
-		Llvm::Value comparer
-	)
-		noexcept
-		-> Llvm::Value
+		(Llvm::Builder& builder, Llvm::Value compared, Llvm::Value comparer) noexcept -> Llvm::Value
 	{
 		const auto dividend_type = compared->getType();
 
@@ -315,13 +282,7 @@ namespace vector::generation
 		} 
 	}
 	[[nodiscard]] auto generate_less_than
-	(
-		Llvm::Builder& builder,
-		Llvm::Value compared,
-		Llvm::Value comparer
-	)
-		noexcept
-		-> Llvm::Value
+		(Llvm::Builder& builder, Llvm::Value compared, Llvm::Value comparer) noexcept -> Llvm::Value
 	{
 		const auto dividend_type = compared->getType();
 
@@ -340,13 +301,7 @@ namespace vector::generation
 		} 
 	}
 	[[nodiscard]] auto generate_less_equal
-	(
-		Llvm::Builder& builder,
-		Llvm::Value compared,
-		Llvm::Value comparer
-	)
-		noexcept
-		-> Llvm::Value
+		(Llvm::Builder& builder, Llvm::Value compared, Llvm::Value comparer) noexcept -> Llvm::Value
 	{
 		const auto dividend_type = compared->getType();
 
@@ -365,13 +320,7 @@ namespace vector::generation
 		} 
 	}
 	[[nodiscard]] auto generate_division
-	(
-		Llvm::Builder& builder,
-		Llvm::Value dividend,
-		Llvm::Value divisor
-	)
-		noexcept
-		-> Llvm::Value
+		(Llvm::Builder& builder, Llvm::Value dividend, Llvm::Value divisor) noexcept -> Llvm::Value
 	{
 		const auto dividend_type {dividend->getType()};
 		if (dividend_type == builder.getInt64Ty())
@@ -390,12 +339,7 @@ namespace vector::generation
 	}
 	// TODO: add all operators
 	[[nodiscard]] auto generate_binary_expression
-	(
-		Llvm& state,
-		const language::SyntaxTree& tree
-	)
-		noexcept
-		-> Llvm::Value
+		(Llvm& state, const language::SyntaxTree& tree) noexcept -> Llvm::Value
 	{
 		const auto& expression = std::get<language::BinaryExpression>(tree.data);
 
@@ -440,12 +384,7 @@ namespace vector::generation
 	}
 
 	[[nodiscard]] auto generate_call_expression
-	(
-		Llvm& state,
-		const language::SyntaxTree& expression
-	)
-		noexcept
-		-> Llvm::Value
+		(Llvm& state, const language::SyntaxTree& expression) noexcept -> Llvm::Value
 	{
 		const auto call_expression = std::get<language::CallExpression>(expression.data);
 
@@ -478,12 +417,7 @@ namespace vector::generation
 	}
 
 	[[nodiscard]] auto generate_expression
-	(
-		Llvm& state,
-		const language::SyntaxTree& expression
-	)
-		noexcept
-		-> Llvm::Value
+		(Llvm& state, const language::SyntaxTree& expression) noexcept -> Llvm::Value
 	{
 		switch (expression.type)
 		{
@@ -506,19 +440,14 @@ namespace vector::generation
 
 	// [functions]===================================================================================
 	[[nodiscard]] auto generate_function_decleration
-	(
-		Llvm::Context& context,
-		llvm::Module& global_module,
-		const language::SyntaxTree tree
-	)
-		noexcept
+		(Llvm::Context& context, llvm::Module& global_module, const language::SyntaxTree tree) noexcept
 		-> Llvm::Function
 	{
 		const auto signature = std::get<language::FunctionSignature>(tree.data);
 
 		// return type deduction
 		const auto return_type = identifier_to_type(signature.return_type_identifier, context);
-		if (return_type == nullptr) UNLIKELY
+		if (return_type.llvm == nullptr) UNLIKELY
 		{
 			return nullptr;
 		}
@@ -529,10 +458,10 @@ namespace vector::generation
 		while (grammar_parameter_iterator != signature.parameters.end())
 		{
 			*code_parameter_iterator++ =
-				identifier_to_type(grammar_parameter_iterator++->type_identifier, context);
+				identifier_to_type(grammar_parameter_iterator++->type_identifier, context).llvm;
 		}
 
-		const auto llvm_signature = llvm::FunctionType::get(return_type, parameter_types, false);
+		const auto llvm_signature = llvm::FunctionType::get(return_type.llvm, parameter_types, false);
 		if (llvm_signature == nullptr) UNLIKELY
 		{
 			return {};
@@ -574,20 +503,10 @@ namespace vector::generation
 	}
 
 	[[nodiscard]] auto generate_block
-	(
-		Llvm& state,
-		const language::SyntaxForest& block
-	)
-		noexcept
-		-> bool;
+		(Llvm& state, const language::SyntaxForest& block) noexcept -> bool;
 	
 	[[nodiscard]] auto generate_return_statement
-	(
-		Llvm& state,
-		const language::SyntaxTree& statement
-	)
-		noexcept
-		-> bool
+		(Llvm& state, const language::SyntaxTree& statement) noexcept -> bool
 	{
 		return
 			state.builder.CreateRet
@@ -602,12 +521,7 @@ namespace vector::generation
 			!= nullptr;
 	}
 	[[nodiscard]] auto generate_variable_definition
-	(
-		Llvm& state,
-		const language::SyntaxTree& statement
-	)
-		noexcept
-		-> bool
+		(Llvm& state, const language::SyntaxTree& statement) noexcept -> bool
 	{
 		const auto definition = std::get<language::VariableDefinition>(statement.data);
 		const auto llvm_value = generate_expression(state, *definition.initializer.pointer);
@@ -622,12 +536,7 @@ namespace vector::generation
 		return true;
 	}
 	[[nodiscard]] auto generate_if_statement
-	(
-		Llvm& state,
-		const language::SyntaxTree& statement
-	)
-		noexcept
-		-> bool
+		(Llvm& state, const language::SyntaxTree& statement) noexcept -> bool
 	{
 		const auto branch = std::get<language::IfStatement>(statement.data);
 		const auto llvm_condition = generate_expression(state, *branch.condition.pointer);
@@ -672,12 +581,7 @@ namespace vector::generation
 		return true;
 	}
 	[[nodiscard]] auto generate_block
-	(
-		Llvm& state,
-		const language::SyntaxForest& block
-	)
-		noexcept
-		-> bool
+		(Llvm& state, const language::SyntaxForest& block) noexcept -> bool
 	{
 		for (const auto& statement : block)
 		{
@@ -723,12 +627,7 @@ namespace vector::generation
 	}
 	// TODO: include check for sameness if signature exists
 	[[nodiscard]] auto generate_function_definition
-	(
-		Llvm& state,
-		const language::SyntaxTree& tree
-	)
-		noexcept
-		-> bool
+		(Llvm& state, const language::SyntaxTree& tree) noexcept -> bool
 	{
 		const auto definition = std::get<language::FunctionDefinition>(tree.data);
 
@@ -754,7 +653,7 @@ namespace vector::generation
 		else if
 		(
 			function->getReturnType() !=
-			identifier_to_type(definition.signature.return_type_identifier, state.context)
+			identifier_to_type(definition.signature.return_type_identifier, state.context).llvm
 		)
 			UNLIKELY
 		{
@@ -796,7 +695,7 @@ namespace vector::generation
 	}
 
 	// TODO: maybe remove global_module allocation
-	// entry point for code (LLVMIR) generation grammar
+	// entry point for code (LLVM-IR) generation grammar
 	[[nodiscard]] auto generate(const language::SyntaxForest& grammar, Llvm& state)
 		noexcept
 		-> bool

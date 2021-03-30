@@ -90,6 +90,17 @@ namespace vector::language
 	struct SyntaxTree;
 	using SyntaxForest = std::vector<SyntaxTree>;
 
+	template<typename Value>
+	struct LiteralExpression
+	{
+		std::string_view type;
+		Value value;
+	};
+	using WholeLiteralExpression = LiteralExpression<unsigned long long>;
+	using FractionLiteralExpression = LiteralExpression<double>;
+	using CharacterLiteralExpression = LiteralExpression<char>;
+	using StringLiteralExpression = LiteralExpression<std::string>;
+
 	struct IfStatement
 	{
 		utility::SmartPointer<SyntaxTree> condition;
@@ -184,29 +195,31 @@ namespace vector::language
 		using Data = 
 			std::variant
 			<
-				// literals
-				unsigned long long,
-				double,
-				char,
-				std::string_view,  // also variable, type expression
+				std::string_view  // identifier expression
 
 				// expressions
-				BinaryExpression,
-				CallExpression,
+				, BinaryExpression
+				, CallExpression
+
+				// literals
+				, WholeLiteralExpression
+				, FractionLiteralExpression
+				, CharacterLiteralExpression
+				, StringLiteralExpression
 
 				// signatures
-				FunctionSignature,
+				, FunctionSignature
 
 				// statements
-				IfStatement,
+				, IfStatement
 
 				// definitions
-				VariableDefinition,
-				FunctionDefinition,
-				StructureDefinition,
+				, VariableDefinition
+				, FunctionDefinition
+				, StructureDefinition
 
 				// top levels
-				utility::SmartPointer<SyntaxTree>  // import statement, return statement
+				, utility::SmartPointer<SyntaxTree>  // import statement, return statement
 			>;
 
 
@@ -215,10 +228,10 @@ namespace vector::language
 	};
 
 
-	enum class DataType : unsigned char
+	// generating
+	struct DataType
 	{
-		Natural,
-		Integer,
-		Real
+		llvm::Type* llvm;
+		bool is_signed;
 	};
 }
