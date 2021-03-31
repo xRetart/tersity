@@ -145,6 +145,12 @@ namespace vector::language
 	{
 		std::string_view identifier;
 		utility::SmartPointer<SyntaxTree> initializer;
+		bool is_mutable;
+	};
+	struct VariableReassignment
+	{
+		std::string_view identifier;
+		utility::SmartPointer<SyntaxTree> value;
 	};
 	struct FunctionDefinition
 	{
@@ -176,6 +182,7 @@ namespace vector::language
 			// statements
 			, return_statement
 			, if_statement
+			, variable_reassignment
 
 			// declerations
 			, variable_decleration
@@ -212,6 +219,7 @@ namespace vector::language
 
 				// statements
 				, IfStatement
+				, VariableReassignment
 
 				// definitions
 				, VariableDefinition

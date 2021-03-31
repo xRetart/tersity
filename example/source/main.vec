@@ -3,10 +3,13 @@ function print_character(x : Character);
 
 function main() -> Byte
 {
-	print_character('x');
-	print_character('y');
-	print_character('z');
-	print_character(10c);
+	let mutable char = 'a';
+	print_character(char);
 
+	char = 'b';
+	print_character(char);
+
+
+	print_character(10c);
 	return 0b;
 }

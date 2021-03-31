@@ -59,6 +59,7 @@ namespace vector::error
 		// statements
 		, statement_sign
 		, wrong_keyword_statement
+		, invalid_identifier_statement
 		, missing_semicolon
 		, missing_calling_parenthese
 

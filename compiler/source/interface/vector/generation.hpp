@@ -27,7 +27,9 @@ namespace vector::generation
 		using Function = llvm::Function*;
 
 		using Builder = llvm::IRBuilder<>;
-		using Symbols = std::unordered_map<Identifier, Value>;
+		using Constants = std::unordered_map<Identifier, Value>;
+		using Mutables = std::unordered_map<Identifier, llvm::AllocaInst*>;
+		using Symbols = std::pair<Constants, Mutables>;
 		using Context = llvm::LLVMContext;
 		using GlobalModule = llvm::Module;
 
@@ -112,6 +114,12 @@ namespace vector::generation
 		{
 			return 8;
 		}
+		
+		// DBG
+		else
+		{
+			return 0;
+		}
 	}
 	
 	// [expression]==================================================================================
@@ -145,9 +153,25 @@ namespace vector::generation
 	}
 
 	[[nodiscard]] auto generate_variable_expression
-		(Llvm::Symbols& symbols, const language::SyntaxTree& variable) noexcept -> Llvm::Value
+		(Llvm::Symbols& symbols, Llvm::Builder& builder, const language::SyntaxTree& variable)
+		noexcept
+		-> Llvm::Value
 	{
-		return symbols[std::get<std::string_view>(variable.data)];
+		const auto identifier = std::get<Identifier>(variable.data);
+
+		// note that constants are first
+		if (symbols.first.count(identifier) == 1)
+		{
+			return symbols.first[identifier];
+		}
+		else if (symbols.second.count(identifier) == 1)
+		{
+			return builder.CreateLoad(symbols.second[identifier]);
+		}
+		else
+		{
+			return {};
+		}
 	}
 
 
@@ -155,7 +179,7 @@ namespace vector::generation
 		(Llvm& state, const language::BinaryExpression& expression) noexcept -> Llvm::Value
 	{
 		const auto left = generate_expression(state, *expression.left.pointer);
-		const auto& right = std::get<std::string_view>(expression.right.pointer->data);
+		const auto& right = std::get<Identifier>(expression.right.pointer->data);
 
 		if (is_integer_type(right))
 		{
@@ -444,7 +468,7 @@ namespace vector::generation
 		case language::SyntaxTree::Type::character_literal_expression:
 			return generate_character_literal_expression(state.context, expression);
 		case language::SyntaxTree::Type::variable_expression:
-			return generate_variable_expression(state.symbols, expression);
+			return generate_variable_expression(state.symbols, state.builder, expression);
 		case language::SyntaxTree::Type::call_expression:
 			return generate_call_expression(state, expression);
 		case language::SyntaxTree::Type::binary_expression:
@@ -549,7 +573,25 @@ namespace vector::generation
 			return {};
 		}
 
-		state.symbols.emplace(definition.identifier, llvm_value);
+		if (definition.is_mutable)
+		{
+			const auto type = llvm_value->getType();
+			const auto llvm_allocation = state.builder.CreateAlloca(type);
+			if (llvm_allocation == nullptr) UNLIKELY
+			{
+				return {};
+			}
+			state.symbols.second[definition.identifier] = llvm_allocation;
+
+			if (state.builder.CreateStore(llvm_value, llvm_allocation) == nullptr) UNLIKELY
+			{
+				return {};
+			}
+		}
+		else
+		{
+			state.symbols.first[definition.identifier] = llvm_value;
+		}
 
 		return true;
 	}
@@ -598,46 +640,84 @@ namespace vector::generation
 
 		return true;
 	}
+	[[nodiscard]] auto generate_variable_reassignment_statement
+		(Llvm& state, const language::SyntaxTree& statement) noexcept -> bool
+	{
+		const auto& reassignment = std::get<language::VariableReassignment>(statement.data);
+
+		// get allocation
+		const auto llvm_allocation_search = state.symbols.second.find(reassignment.identifier);
+		if (llvm_allocation_search == state.symbols.second.end()) UNLIKELY
+		{
+			return {};
+		}
+		const auto llvm_allocation = llvm_allocation_search->second;
+
+		// get value
+		const auto llvm_value = generate_expression(state, *reassignment.value.pointer);
+		if (llvm_value == nullptr) UNLIKELY
+		{
+			return {};
+		}
+
+		// merge value and allocation to llvm store
+		return state.builder.CreateStore(llvm_value, llvm_allocation);
+	}
+	[[nodiscard]] auto generate_statement
+		(Llvm& state, const language::SyntaxTree& statement) noexcept -> bool
+	{
+		switch (statement.type)
+		{
+			case language::SyntaxTree::Type::return_statement:
+				if (!generate_return_statement(state, statement)) UNLIKELY
+				{
+					return {};
+				}
+				break;
+			case language::SyntaxTree::Type::variable_definition:
+			{
+				if (!generate_variable_definition(state, statement)) UNLIKELY
+				{
+					return {};
+				}
+				break;
+			}
+			case language::SyntaxTree::Type::if_statement:
+				if (!generate_if_statement(state, statement)) UNLIKELY
+				{
+					return {};
+				}
+				break;
+			case language::SyntaxTree::Type::call_expression:
+				if (generate_call_expression(state, statement) == nullptr) UNLIKELY
+				{
+					return {};
+				}
+				break;
+			case language::SyntaxTree::Type::variable_reassignment:
+				if (!generate_variable_reassignment_statement(state, statement)) UNLIKELY
+				{
+					return {};
+				}
+				break;
+
+			// dbg
+			default:
+				std::fputs("unknown body statement", stderr);
+				std::abort();
+				break;
+		}
+
+		return true;
+	}
 	[[nodiscard]] auto generate_block
 		(Llvm& state, const language::SyntaxForest& block) noexcept -> bool
 	{
 		for (const auto& statement : block)
 		{
-			switch (statement.type)
+			if (!generate_statement(state, statement)) UNLIKELY
 			{
-				case language::SyntaxTree::Type::return_statement:
-					if (!generate_return_statement(state, statement)) UNLIKELY
-					{
-						return {};
-					}
-					break;
-				case language::SyntaxTree::Type::variable_definition:
-				{
-					if (!generate_variable_definition(state, statement)) UNLIKELY
-					{
-						return {};
-					}
-					break;
-				}
-				case language::SyntaxTree::Type::if_statement:
-					if (!generate_if_statement(state, statement)) UNLIKELY
-					{
-						return {};
-					}
-					break;
-				case language::SyntaxTree::Type::call_expression:
-					if (generate_call_expression(state, statement) == nullptr) UNLIKELY
-					{
-						return {};
-					}
-					break;
-				// dbg
-				default:
-				{
-					std::fputs("unknown body statement", stderr);
-					std::abort();
-					break;
-				}
+				return {};
 			}
 		}
 
@@ -686,10 +766,11 @@ namespace vector::generation
 		auto insertion_point = llvm::BasicBlock::Create(state.context, "entry", function);
 		state.builder.SetInsertPoint(insertion_point);
 
-		state.symbols.clear();
+		state.symbols.first.clear();
+		state.symbols.second.clear();
 		for (auto& parameter : function->args())
 		{
-			state.symbols[parameter.getName()] = &parameter;
+			state.symbols.first[parameter.getName()] = &parameter;
 		}
 
 		const auto success = generate_block(state, definition.body);

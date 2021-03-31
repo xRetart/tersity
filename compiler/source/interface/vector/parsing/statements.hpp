@@ -33,6 +33,17 @@ namespace vector::parsing
 	[[nodiscard]] auto parse_let_statement(language::TokenIterator iterator) noexcept
 		-> error::Result<language::SyntaxTree>
 	{
+		auto is_mutable = false;
+		if
+		(
+			iterator->type == language::Token::Type::keyword &&
+			std::get<std::string>(iterator->value) == "mutable"
+		)
+		{
+			++iterator;
+			is_mutable = true;
+		}
+
 		VECTOR_ASSERT
 		(
 			iterator->type == language::Token::Type::identifier,
@@ -58,7 +69,8 @@ namespace vector::parsing
 				language::VariableDefinition
 				{
 					identifier,
-					std::make_unique<language::SyntaxTree>(initializer)
+					std::make_unique<language::SyntaxTree>(initializer),
+					is_mutable
 				}
 			};
 	}
@@ -105,6 +117,33 @@ namespace vector::parsing
 			};
 	}
 
+	[[nodiscard]] auto parse_reassignment_statement(language::TokenIterator iterator) noexcept
+		-> error::Result<language::SyntaxTree>
+	{
+		const auto& identifier = std::get<std::string>(iterator++->value);
+		VECTOR_ASSERT
+		(
+			iterator->is(language::Sign::equals, language::Token::Type::operator_symbol),
+			(
+				error::Error
+				{"expected equals or opening parentheses", error::Code::invalid_identifier_statement}
+			)
+		);
+		++iterator;
+
+		const auto value_result = parse_expression(iterator);
+		VECTOR_ASSERT_RESULT(value_result);
+		const auto& value = value_result.value();
+
+		return
+			language::SyntaxTree
+			{
+				language::SyntaxTree::Type::variable_reassignment,
+				language::VariableReassignment
+				{identifier, std::make_unique<language::SyntaxTree>(value)}
+			};
+	}
+
 	// parse any keyword statement inside a block
 	// forks into specific parsing fuctions ("return", "let", ...)
 	// expects iterator to keyword
@@ -131,6 +170,22 @@ namespace vector::parsing
 		}
 	}
 
+	// parse any statement starting with an arbritray identifier excluding keywords inside block
+	// forks into functions: "parse_reassignment_statement", "parse_call_expression"
+	[[nodiscard]] auto parse_identifier_statement(language::TokenIterator iterator) noexcept
+		-> error::Result<language::SyntaxTree>
+	{
+		if (iterator[1].is(language::Sign::opening_parenthese))
+		{
+			return parse_call_expression(iterator);
+		}
+		else
+		{
+			return parse_reassignment_statement(iterator);
+		}
+	}
+
+
 	// TODO: repair semicolon check
 	// parse any statement into syntax tree
 	// forks into parsing for keyword statement and identifier statement
@@ -145,7 +200,7 @@ namespace vector::parsing
 		switch (iterator->type)
 		{
 			case language::Token::Type::identifier:
-				statement_result = parse_call_expression(iterator);
+				statement_result = parse_identifier_statement(iterator);
 				break;
 			case language::Token::Type::keyword:
 				statement_result = parse_keyword_statement(iterator);
