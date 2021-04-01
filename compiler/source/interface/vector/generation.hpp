@@ -194,55 +194,53 @@ namespace vector::generation
 	[[nodiscard]] auto generate_addition
 		(Llvm::Builder& builder, Llvm::Value left_summand, Llvm::Value right_summand) noexcept -> Llvm::Value
 	{
-		const auto left_type {left_summand->getType()};
-		if (left_type == builder.getInt64Ty())
+		const auto left_type = left_summand->getType();
+		if (left_type->isIntegerTy())
 		{
 			return builder.CreateAdd(left_summand, right_summand);
 		}
-		else if (left_type == builder.getDoubleTy())
+		else if (left_type->isFloatingPointTy())
 		{
 			return builder.CreateFAdd(left_summand, right_summand);
 		}
 		// dbg
 		else
 		{
-			std::abort();
+			return {};
 		} 
 	}
 	[[nodiscard]] auto generate_subraction
 		(Llvm::Builder& builder, Llvm::Value minuend, Llvm::Value subtrahend) noexcept -> Llvm::Value
 	{
 		const auto minuend_type = minuend->getType();
-		if (minuend_type == builder.getInt64Ty())
+		if (minuend_type->isIntegerTy())
 		{
 			return builder.CreateSub(minuend, subtrahend);
 		}
-		else if (minuend_type == builder.getDoubleTy())
+		else if (minuend_type->isFloatingPointTy())
 		{
 			return builder.CreateFSub(minuend, subtrahend);
 		}
-		// dbg
 		else
 		{
-			std::abort();
+			return {};
 		} 
 	}
 	[[nodiscard]] auto generate_multiplication
 		(Llvm::Builder& builder, Llvm::Value multiplicand, Llvm::Value multiplicator) noexcept -> Llvm::Value
 	{
 		const auto left_type = multiplicand->getType();
-		if (left_type == builder.getInt64Ty())
+		if (left_type->isIntegerTy())
 		{
 			return builder.CreateMul(multiplicand, multiplicator);
 		}
-		else if (left_type == builder.getDoubleTy())
+		else if (left_type->isFloatingPointTy())
 		{
 			return builder.CreateFMul(multiplicand, multiplicator);
 		}
-		// dbg
 		else
 		{
-			std::abort();
+			return {};
 		} 
 	}
 	[[nodiscard]] auto generate_equal
@@ -250,18 +248,17 @@ namespace vector::generation
 	{
 		const auto dividend_type = compared->getType();
 
-		if (dividend_type == builder.getInt64Ty())
+		if (dividend_type->isIntegerTy())
 		{
 			return builder.CreateICmpEQ(compared, comparer);
 		}
-		else if (dividend_type == builder.getDoubleTy())
+		else if (dividend_type->isFloatingPointTy())
 		{
 			return builder.CreateFCmpOEQ(compared, comparer);
 		}
-		// dbg
 		else
 		{
-			std::abort();
+			return {};
 		} 
 	}
 	[[nodiscard]] auto generate_not_equal
@@ -269,18 +266,17 @@ namespace vector::generation
 	{
 		const auto dividend_type = compared->getType();
 
-		if (dividend_type == builder.getInt64Ty())
+		if (dividend_type->isIntegerTy())
 		{
 			return builder.CreateICmpNE(compared, comparer);
 		}
-		else if (dividend_type == builder.getDoubleTy())
+		else if (dividend_type->isFloatingPointTy())
 		{
 			return builder.CreateFCmpONE(compared, comparer);
 		}
-		// dbg
 		else
 		{
-			std::abort();
+			return {};
 		} 
 	}
 	[[nodiscard]] auto generate_greater_than
@@ -288,18 +284,17 @@ namespace vector::generation
 	{
 		const auto dividend_type = compared->getType();
 
-		if (dividend_type == builder.getInt64Ty())
+		if (dividend_type->isIntegerTy())
 		{
 			return builder.CreateICmpSGT(compared, comparer);
 		}
-		else if (dividend_type == builder.getDoubleTy())
+		else if (dividend_type->isFloatingPointTy())
 		{
 			return builder.CreateFCmpOGT(compared, comparer);
 		}
-		// dbg
 		else
 		{
-			std::abort();
+			return {};
 		} 
 	}
 	[[nodiscard]] auto generate_greater_equal
@@ -307,18 +302,17 @@ namespace vector::generation
 	{
 		const auto dividend_type = compared->getType();
 
-		if (dividend_type == builder.getInt64Ty())
+		if (dividend_type->isIntegerTy())
 		{
 			return builder.CreateICmpSGE(compared, comparer);
 		}
-		else if (dividend_type == builder.getDoubleTy())
+		else if (dividend_type->isFloatingPointTy())
 		{
 			return builder.CreateFCmpOGE(compared, comparer);
 		}
-		// dbg
 		else
 		{
-			std::abort();
+			return {};
 		} 
 	}
 	[[nodiscard]] auto generate_less_than
@@ -326,18 +320,17 @@ namespace vector::generation
 	{
 		const auto dividend_type = compared->getType();
 
-		if (dividend_type == builder.getInt64Ty())
+		if (dividend_type->isIntegerTy())
 		{
 			return builder.CreateICmpSLT(compared, comparer);
 		}
-		else if (dividend_type == builder.getDoubleTy())
+		else if (dividend_type->isFloatingPointTy())
 		{
 			return builder.CreateFCmpOLT(compared, comparer);
 		}
-		// dbg
 		else
 		{
-			std::abort();
+			return {};
 		} 
 	}
 	[[nodiscard]] auto generate_less_equal
@@ -345,36 +338,35 @@ namespace vector::generation
 	{
 		const auto dividend_type = compared->getType();
 
-		if (dividend_type == builder.getInt64Ty())
+		if (dividend_type->isIntegerTy())
 		{
 			return builder.CreateICmpSLE(compared, comparer);
 		}
-		else if (dividend_type == builder.getDoubleTy())
+		else if (dividend_type->isFloatingPointTy())
 		{
 			return builder.CreateFCmpOLE(compared, comparer);
 		}
-		// dbg
 		else
 		{
-			std::abort();
+			return {};
 		} 
 	}
 	[[nodiscard]] auto generate_division
 		(Llvm::Builder& builder, Llvm::Value dividend, Llvm::Value divisor) noexcept -> Llvm::Value
 	{
-		const auto dividend_type {dividend->getType()};
-		if (dividend_type == builder.getInt64Ty())
+		const auto dividend_type = dividend->getType();
+
+		if (dividend_type->isIntegerTy())
 		{
 			return builder.CreateSDiv(dividend, divisor);
 		}
-		else if (dividend_type == builder.getDoubleTy())
+		else if (dividend_type->isFloatingPointTy())
 		{
 			return builder.CreateFDiv(dividend, divisor);
 		}
-		// dbg
 		else
 		{
-			std::abort();
+			return {};
 		} 
 	}
 	// TODO: add all operators
@@ -389,10 +381,8 @@ namespace vector::generation
 			return generate_cast(state, expression);
 		}
 
-		const auto& left =
-			generate_expression(state, *expression.left.pointer);
-		const auto& right =
-			generate_expression(state, *expression.right.pointer);
+		const auto& left = generate_expression(state, *expression.left.pointer);
+		const auto& right = generate_expression(state, *expression.right.pointer);
 
 		switch (expression.operation)
 		{
