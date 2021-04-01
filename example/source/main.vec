@@ -4,11 +4,8 @@ function print_character(x : Character);
 function main() -> Byte
 {
 	let mutable char = 'a';
+	char = char + 1c;
 	print_character(char);
-
-	char = 'b';
-	print_character(char);
-
 
 	print_character(10c);
 	return 0b;
