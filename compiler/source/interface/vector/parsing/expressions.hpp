@@ -29,10 +29,10 @@ namespace vector::parsing
 			case language::Sign::astrisk: return 4;
 			case language::Sign::slash: return 4;
 			case language::Sign::double_astrisk: return 5;
-			case language::Sign::dot: return 6;
-			case language::Sign::arrow: return 6;
-			case language::Sign::double_colon: return 7;
-			case language::Sign::as: return 8;
+			case language::Sign::as: return 6;
+			case language::Sign::dot: return 7;
+			case language::Sign::arrow: return 7;
+			case language::Sign::double_colon: return 8;
 
 			// unspecified binary operator
 			default: return 0;
@@ -65,7 +65,7 @@ namespace vector::parsing
 			case language::Sign::double_pipe: return language::BinaryExpression::Operation::logical_or;
 			case language::Sign::double_ampersand: return language::BinaryExpression::Operation::logical_and;
 
-			// dbg delete in release mode
+			// DEBUG
 			UNLIKELY default: abort();
 		}
 	}
@@ -85,7 +85,7 @@ namespace vector::parsing
 		}
 		else
 		{
-			type = "Integer";
+			type = "i";
 		}
 
 		return
@@ -139,7 +139,7 @@ namespace vector::parsing
 	[[nodiscard]] auto parse_string_literal_expression(language::TokenIterator iterator) noexcept
 		-> language::SyntaxTree
 	{
-		const auto value = std::get<unsigned long long>(iterator++->value);
+		const auto& value = std::get<std::string>(iterator++->value);
 		auto type = std::string_view {};
 
 		if (iterator->type == language::Token::Type::identifier)
@@ -153,8 +153,8 @@ namespace vector::parsing
 
 		return
 			{
-				language::SyntaxTree::Type::whole_literal_expression,
-				language::WholeLiteralExpression {type, value}
+				language::SyntaxTree::Type::string_literal_expression,
+				language::StringLiteralExpression {type, value}
 			};
 	}
 	[[nodiscard]] auto parse_variable_expression(language::TokenIterator iterator) noexcept
@@ -195,6 +195,36 @@ namespace vector::parsing
 				language::CallExpression {parameters, callee}
 			};
 	}
+	[[nodiscard]] auto parse_subscript_expression(language::TokenIterator iterator) noexcept
+		-> error::Result<language::SyntaxTree>
+	{
+		const auto& identifier = std::get<std::string>(iterator->value);
+		iterator += 2;
+
+		const auto index_result = parse_expression(iterator);
+		VECTOR_ASSERT_RESULT(index_result);
+
+		VECTOR_ASSERT
+		(
+			iterator->is(language::Sign::closing_bracket),
+			(
+				error::Error
+				{"subscript was not closed by closing bracket", error::Code::missing_closing_bracket}
+			)
+		);
+		++iterator;
+
+		return 
+			language::SyntaxTree
+			{
+				language::SyntaxTree::Type::subscript_expression,
+				language::IdentifiedExpression
+				{
+					identifier,
+					std::make_unique<language::SyntaxTree>(std::move(index_result.value()))
+				}
+			};
+	}
 	[[nodiscard]] auto parse_identifier_expression(language::TokenIterator iterator) noexcept
 		-> error::Result<language::SyntaxTree>
 	{
@@ -204,9 +234,13 @@ namespace vector::parsing
 		{
 			const auto expression_result = parse_call_expression(iterator);
 			VECTOR_ASSERT_RESULT(expression_result);
-			const auto expression = expression_result.value();
-
-			return std::move(expression);
+			return std::move(expression_result.value());
+		}
+		else if (iterator[1].is(language::Sign::opening_bracket))
+		{
+			const auto subscript_result = parse_subscript_expression(iterator);
+			VECTOR_ASSERT_RESULT(subscript_result);
+			return std::move(subscript_result.value());
 		}
 		else
 		{
@@ -219,7 +253,6 @@ namespace vector::parsing
 	[[nodiscard]] auto parse_parenthese_expression(language::TokenIterator iterator) noexcept
 		-> error::Result<language::SyntaxTree>
 	{
-		++iterator;  // skip parenthese
 		const auto expression_result = parse_expression(iterator);
 		VECTOR_ASSERT_RESULT(expression_result);
 		const auto expression = expression_result.value();
@@ -233,16 +266,49 @@ namespace vector::parsing
 
 		return expression;
 	}
+	[[nodiscard]] auto parse_array_literal(language::TokenIterator iterator) noexcept
+		-> error::Result<language::SyntaxTree>
+	{
+		auto elements = language::SyntaxForest {};
+		auto add_element =
+			[&iterator, &elements]() noexcept -> error::Result<void>
+			{
+				const auto element_expression_result = parse_expression(iterator);
+				VECTOR_ASSERT_RESULT(element_expression_result);
+				elements.push_back(element_expression_result.value());
+
+				return error::none;
+			};
+
+		VECTOR_ASSERT_RESULT(iterate_seperated_list(iterator, add_element, language::Sign::closing_bracket));
+
+		auto type = std::string_view {};
+		if (iterator->type == language::Token::Type::identifier)
+		{
+			type = std::get<std::string>(iterator++->value);
+		}
+		// else not defined because at this stage impossible
+
+		return
+			language::SyntaxTree
+			{
+				language::SyntaxTree::Type::array_literal_expression,
+				language::ArrayLiteralExpression {type, elements}
+			};
+	}
 	[[nodiscard]] auto parse_seperated_expression(language::TokenIterator iterator) noexcept
 		-> error::Result<language::SyntaxTree>
 	{
-		VECTOR_ASSERT
-		(
-			iterator->is(language::Sign::opening_parenthese),
-			(error::Error {"unkown seperator sign", error::Code::statement_sign})
-		);
+		switch (std::get<language::Sign>(iterator->value))
+		{
+		case language::Sign::opening_parenthese:	
+			return parse_parenthese_expression(++iterator);
+		case language::Sign::opening_bracket:	
+			return parse_array_literal(++iterator);
 
-		return parse_parenthese_expression(iterator);
+		UNLIKELY default:
+			return error::Error {"unkown seperator sign", error::Code::statement_sign};
+		}
 	}
 
 	[[nodiscard]] auto parse_primary_expression(language::TokenIterator iterator) noexcept

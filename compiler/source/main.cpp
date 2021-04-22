@@ -21,7 +21,7 @@ auto main(const int parameter_count, const char* const* const parameters) noexce
     // load source file
     const auto source_result = vector::files::load(configuration.source_filename.data());
     VECTOR_HANDLE_RESULT(source_result);
-    const auto source = source_result.value();
+    const auto& source = source_result.value();
 
     
     // lex source to tokens
@@ -31,7 +31,7 @@ auto main(const int parameter_count, const char* const* const parameters) noexce
     // parse tokens to grammar
     const auto grammar_result = vector::parsing::parse(tokens);
     VECTOR_HANDLE_RESULT(grammar_result);
-    const auto grammar = grammar_result.value();
+    const auto& grammar = grammar_result.value();
     
 
     // generate grammar to llvm-ir

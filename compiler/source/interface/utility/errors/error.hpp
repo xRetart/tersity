@@ -41,7 +41,6 @@ namespace vector::error
 		// syntax
 		// general
 		, missing_comma
-		, missing_closing_parenthese
 
 		// top level
 		, expected_top_level_keyword
@@ -69,6 +68,8 @@ namespace vector::error
 
 		// expressions
 		, wrong_keyword_operator
+		, missing_closing_parenthese
+		, missing_closing_bracket
 
 
 		// user
@@ -86,7 +87,6 @@ namespace vector::error
 			// syntax
 			// general
 			case Code::missing_comma: return "missing comma";
-			case Code::missing_closing_parenthese: return "mising closing parenthese";
 
 			// top level
 			case Code::expected_top_level_keyword: return "wrong top level token type";
@@ -111,6 +111,8 @@ namespace vector::error
 
 			// expressions
 			case Code::wrong_keyword_operator: return "wrong keyword operator";
+			case Code::missing_closing_parenthese: return "mising closing parenthese";
+			case Code::missing_closing_bracket: return "mising closing bracket";
 
 
 			// user

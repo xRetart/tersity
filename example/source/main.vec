@@ -1,12 +1,12 @@
-function print_character(x : Character);
+function print_n(string : String, character_count : Natural);
+function print_character(character : Character);
 
 
 function main() -> Byte
 {
-	let mutable char = 'a';
-	char = char + 1c;
-	print_character(char);
+	// let string = "abc";
+	// print_n(string.base_address(), 3n);
 
-	print_character(10c);
-	return 0b;
+	// print_character(10c);
+	return 21b;
 }

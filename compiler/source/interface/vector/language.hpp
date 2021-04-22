@@ -100,6 +100,7 @@ namespace vector::language
 	using FractionLiteralExpression = LiteralExpression<double>;
 	using CharacterLiteralExpression = LiteralExpression<char>;
 	using StringLiteralExpression = LiteralExpression<std::string>;
+	using ArrayLiteralExpression = LiteralExpression<SyntaxForest>;
 
 	struct IfStatement
 	{
@@ -147,7 +148,7 @@ namespace vector::language
 		utility::SmartPointer<SyntaxTree> initializer;
 		bool is_mutable;
 	};
-	struct VariableReassignment
+	struct IdentifiedExpression
 	{
 		std::string_view identifier;
 		utility::SmartPointer<SyntaxTree> value;
@@ -173,11 +174,13 @@ namespace vector::language
 			whole_literal_expression
 			, fraction_literal_expression
 			, character_literal_expression
+			, array_literal_expression
 			, string_literal_expression
 			, variable_expression
 			, type_expression
 			, binary_expression
 			, call_expression
+			, subscript_expression
 
 			// statements
 			, return_statement
@@ -213,13 +216,14 @@ namespace vector::language
 				, FractionLiteralExpression
 				, CharacterLiteralExpression
 				, StringLiteralExpression
+				, ArrayLiteralExpression
 
 				// signatures
 				, FunctionSignature
 
 				// statements
 				, IfStatement
-				, VariableReassignment
+				, IdentifiedExpression
 
 				// definitions
 				, VariableDefinition

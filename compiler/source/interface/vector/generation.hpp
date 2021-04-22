@@ -54,6 +54,7 @@ namespace vector::generation
 			identifier == "Integer16" ||
 			identifier == "Integer32" ||
 			identifier == "Integer64" ||
+			identifier == "String" ||
 			identifier == "Integer";
 	}
 	[[nodiscard]] auto identifier_to_type(const Identifier identifier, Llvm::Context& context) noexcept
@@ -78,6 +79,10 @@ namespace vector::generation
 		else if (identifier == "Character")
 		{
 			return {llvm::Type::getInt8Ty(context), false};
+		}
+		else if (identifier == "String")
+		{
+			return {llvm::Type::getInt8PtrTy(context), false};
 		}
 		else if (identifier == "SByte")
 		{
@@ -136,7 +141,7 @@ namespace vector::generation
 				(context, llvm::APInt {literal_type_size(literal.type), literal.value});
 	}
 	[[nodiscard]] auto generate_fraction_literal_expression
-		(Llvm::Context& context,const language::SyntaxTree& value) noexcept -> llvm::ConstantFP*
+		(Llvm::Context& context, const language::SyntaxTree& value) noexcept -> llvm::ConstantFP*
 	{
 		return
 			llvm::ConstantFP::get
@@ -146,10 +151,86 @@ namespace vector::generation
 			);
 	}
 	[[nodiscard]] auto generate_character_literal_expression
-		(Llvm::Context& context,const language::SyntaxTree& value) noexcept -> llvm::ConstantInt*
+		(Llvm::Context& context, const language::SyntaxTree& value) noexcept -> llvm::ConstantInt*
 	{
 		const auto literal = std::get<language::CharacterLiteralExpression>(value.data);
 		return llvm::ConstantInt::get(context, llvm::APInt {8, static_cast<uint64_t>(literal.value)});
+	}
+	[[nodiscard]] auto generate_string_literal_expression
+		(Llvm& state, const language::SyntaxTree& value) noexcept -> llvm::Value*
+	{
+		const auto literal = std::get<language::StringLiteralExpression>(value.data);
+		
+		auto llvm_constants = std::vector<llvm::Constant*> {literal.value.size()};
+
+		auto llvm_constants_iterator = llvm_constants.begin();
+		for (const auto& character : literal.value)
+		{
+			*llvm_constants_iterator++ = state.builder.getInt8(character);
+		}
+
+		return
+			llvm::ConstantArray::get
+				(llvm::ArrayType::get(state.builder.getInt8Ty(), literal.value.size()), llvm_constants);
+
+	}
+	// TODO: add literal type support
+	[[nodiscard]] auto generate_array_literal_expression
+		(Llvm& state, const language::SyntaxTree& value) noexcept -> llvm::AllocaInst*
+	{
+		const auto literal = std::get<language::ArrayLiteralExpression>(value.data);
+
+		// vector would be overkill, we just want a buffer
+		auto llvm_elements = std::make_unique<Llvm::Value[]>(literal.value.size());
+
+		auto llvm_elements_iterator = llvm_elements.get();
+		for (const auto& element : literal.value)
+		{
+			auto& llvm_element = *llvm_elements_iterator;
+			llvm_element = generate_expression(state, element);
+
+			if (llvm_element == nullptr) UNLIKELY
+			{
+				return {};
+			}
+
+			++llvm_elements_iterator;
+		}
+
+		const auto llvm_allocation =
+			state.builder.CreateAlloca
+				(llvm::ArrayType::get((*llvm_elements.get())->getType(), literal.value.size()));
+
+		if (llvm_allocation == nullptr) UNLIKELY
+		{
+			return {};
+		}
+
+		for
+		(
+			auto iterator = llvm_elements.get();
+			iterator != llvm_elements.get() + literal.value.size();
+			++iterator
+		)
+		{
+			const auto llvm_address =
+				state.builder.CreateInBoundsGEP
+					(
+						llvm_allocation, {state.builder.getInt64(0),
+						state.builder.getInt64(iterator - llvm_elements.get())}
+					);
+			if (llvm_address == nullptr) UNLIKELY
+			{
+				return {};
+			}
+
+			if (state.builder.CreateStore(*iterator, llvm_address) == nullptr) UNLIKELY
+			{
+				return {};
+			}
+		}
+
+		return llvm_allocation;
 	}
 
 	[[nodiscard]] auto generate_variable_expression
@@ -369,6 +450,13 @@ namespace vector::generation
 			return {};
 		} 
 	}
+	[[nodiscard]] auto generate_access_instance
+		(Llvm::Builder& builder, Llvm::Value instance, Llvm::Value field) noexcept -> Llvm::Value
+	{
+		if (instance->getType() == builder.getInt8PtrTy())
+		{
+		}
+	}
 	// TODO: add all operators
 	[[nodiscard]] auto generate_binary_expression
 		(Llvm& state, const language::SyntaxTree& tree) noexcept -> Llvm::Value
@@ -406,6 +494,8 @@ namespace vector::generation
 			return generate_less_than(state.builder, left, right);
 		case language::BinaryExpression::Operation::less_equal:
 			return generate_less_equal(state.builder, left, right);
+		case language::BinaryExpression::Operation::access_instance:
+			return generate_access_instance(state.builder, left, right);
 		
 		// dbg
 		UNLIKELY default:
@@ -445,6 +535,32 @@ namespace vector::generation
 
 		return state.builder.CreateCall(callee_value, parameter_values);
 	}
+	[[nodiscard]] auto generate_subscript_expression
+		(Llvm& state, const language::SyntaxTree& expression) noexcept -> Llvm::Value
+	{
+		const auto& subscript = std::get<language::IdentifiedExpression>(expression.data);
+
+		const auto llvm_array = state.symbols.first.find(subscript.identifier);
+		if (llvm_array == state.symbols.first.end()) UNLIKELY
+		{
+			return {};
+		}
+
+		const auto llvm_index = generate_expression(state, *subscript.value.pointer);
+		if (llvm_index == nullptr) UNLIKELY
+		{
+			return {};
+		}
+
+		const auto llvm_pointer =
+			state.builder.CreateInBoundsGEP(llvm_array->second, {state.builder.getInt64(0), llvm_index});
+		if (llvm_pointer == nullptr) UNLIKELY
+		{
+			return {};
+		}
+
+		return state.builder.CreateLoad(llvm_pointer);
+	}
 
 	[[nodiscard]] auto generate_expression
 		(Llvm& state, const language::SyntaxTree& expression) noexcept -> Llvm::Value
@@ -457,10 +573,16 @@ namespace vector::generation
 			return generate_fraction_literal_expression(state.context, expression);
 		case language::SyntaxTree::Type::character_literal_expression:
 			return generate_character_literal_expression(state.context, expression);
+		case language::SyntaxTree::Type::array_literal_expression:
+			return generate_array_literal_expression(state, expression);
+		case language::SyntaxTree::Type::string_literal_expression:
+			return generate_string_literal_expression(state, expression);
 		case language::SyntaxTree::Type::variable_expression:
 			return generate_variable_expression(state.symbols, state.builder, expression);
 		case language::SyntaxTree::Type::call_expression:
 			return generate_call_expression(state, expression);
+		case language::SyntaxTree::Type::subscript_expression:
+			return generate_subscript_expression(state, expression);
 		case language::SyntaxTree::Type::binary_expression:
 			return generate_binary_expression(state, expression);
 
@@ -633,7 +755,7 @@ namespace vector::generation
 	[[nodiscard]] auto generate_variable_reassignment_statement
 		(Llvm& state, const language::SyntaxTree& statement) noexcept -> bool
 	{
-		const auto& reassignment = std::get<language::VariableReassignment>(statement.data);
+		const auto& reassignment = std::get<language::IdentifiedExpression>(statement.data);
 
 		// get allocation
 		const auto llvm_allocation_search = state.symbols.second.find(reassignment.identifier);

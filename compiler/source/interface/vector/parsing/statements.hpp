@@ -139,7 +139,7 @@ namespace vector::parsing
 			language::SyntaxTree
 			{
 				language::SyntaxTree::Type::variable_reassignment,
-				language::VariableReassignment
+				language::IdentifiedExpression
 				{identifier, std::make_unique<language::SyntaxTree>(value)}
 			};
 	}

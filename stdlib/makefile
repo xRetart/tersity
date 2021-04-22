@@ -28,7 +28,8 @@ OBJECTS = $(OBJECT_DIRECTORY)/bootstrap.o
 SYSTEM_OBJECT_DIRECTORY = $(OBJECT_DIRECTORY)/system
 SYSTEM_OBJECTS = \
 	$(SYSTEM_OBJECT_DIRECTORY)/exit.o \
-	$(SYSTEM_OBJECT_DIRECTORY)/print_character.o
+	$(SYSTEM_OBJECT_DIRECTORY)/print_character.o \
+	$(SYSTEM_OBJECT_DIRECTORY)/print_n.o \
 
 # build usable stdlib
 TARGET = $(TARGET_DIRECTORY)/vector.a
