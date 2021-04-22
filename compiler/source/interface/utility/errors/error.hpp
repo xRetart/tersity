@@ -1,10 +1,9 @@
 #pragma once
 
 #include <limits>
-#include <variant>
 #include <optional>
-#include <vector>
-#include <string>
+#include <variant>
+#include <string_view>
 #include <iostream>
 #include "../utility.hpp"
 
